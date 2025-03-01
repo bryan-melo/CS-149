@@ -1,2 +1,133 @@
 # CS 149 HW-1
 
+## Name: Bryan Melo
+## HW-1 Debugging Exercise in Encryption Library
+
+## Steps Taken to Complete HW-1
+
+---
+
+1. Set Up Docker \& gdb 
+- Pull the gcc Docker image and run container
+- Install gdb inside the container
+
+```bash
+docker pull gcc
+docker run -itd --name mygcc --privileged=true -p 60000:60000 -v "C:\Users\bmelo\OneDrive\Desktop\cs149-hw1":/cs149-hw1 gcc
+docker exec -ti mygcc bash -c "su"
+
+root@e95b61e2e926:/# apt-get update
+root@e95b61e2e926:/# apt-get install gdb
+```
+
+---
+
+2. cd to cs149-hw1 Directory
+- Change into the directory where the files are located
+  
+```bash 
+root@e95b61e2e926:/# ls
+bin   cs149-hw1  etc   lib    media  opt   root  sbin  sys  usr
+boot  dev        home  lib64  mnt    proc  run   srv   tmp  var
+
+root@e95b61e2e926:/# cd cs149-hw1
+root@e95b61e2e926:/cs149-hw1# ls
+encrypt.cpp  encrypt.h  h1.cpp  key.h
+```
+
+---
+
+3. Compile and link
+- Compile source files and create the shared library
+- Link the compiled files and set the runtime library path
+
+```bash
+root@e95b61e2e926:/cs149-hw1# gcc -g -fPIC -c encrypt.cpp
+root@e95b61e2e926:/cs149-hw1# gcc -g -fPIC -c encrypt.cpp
+root@e95b61e2e926:/cs149-hw1# gcc -g -o libencrypt.so -shared encrypt.o
+root@e95b61e2e926:/cs149-hw1# gcc -g -L. -o h1 h1.cpp -lencrypt -Wl,-rpath=./
+root@e95b61e2e926:/cs149-hw1# sudo cp libencrypt.so /usr/lib
+```
+
+---
+
+4. Test file
+- Test the compiled binary file
+
+```bash
+root@e95b61e2e926:/cs149-hw1# ./h1 "Frank Butt" 0
+Current keys: Direction=0, Shiftcount=2
+Source string = Frank Butt
+Target string = hTCPM dWVV
+Number of characters converted = 9
+```
+
+---
+
+5. Begin debugging process
+- Load the program into gdb
+
+```bash
+(gdb) file h1
+Load new symbol table from "h1"? (y or n) y
+Reading symbols from h1...
+```
+
+- Set breakpoint for the **main** function
+- Set breakpoint for the **s_encrypt** function
+- Set breakpoint for line 48 in the h1 file
+
+```bash
+(gdb) break main
+Breakpoint 1 at 0x40118e: file h1.cpp, line 14.
+(gdb) break s_encrypt(char*, char*, long)
+Breakpoint 2 at 0x401080
+(gdb) break h1.cpp:48
+Breakpoint 3 at 0x40134e: file h1.cpp, line 48.
+(gdb) info breakpoints
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   0x000000000040118e in main(int, char**) at h1.cpp:14
+2       breakpoint     keep y   0x0000000000401080 <s_encrypt(char*, char*, long)@plt>
+3       breakpoint     keep y   0x000000000040134e in main(int, char**) at h1.cpp:48
+```
+
+- Run the program with set breakpoints
+- Use **continue** to step into the breakpoints
+  
+```bash
+(gdb) run "Frank Butt" 0
+Starting program: /cs149-hw1/h1 "Frank Butt" 0
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+
+Breakpoint 1, main (argc=3, argv=0x7fffffffea98) at h1.cpp:14
+14              long rc = 0;
+(gdb) continue
+Continuing.
+Current keys: Direction=0, Shiftcount=2
+
+Breakpoint 2, s_encrypt (src=0x7fffffffecbc "Frank Butt", dest=0x7fffffffe8e0 "", en_flag=0)
+    at encrypt.cpp:28
+28        long rc = 0;
+```
+
+- Change the shift count to 4
+
+```bash
+(gdb) set variable shiftcount=4
+(gdb) continue
+Continuing.
+Source string = Frank Butt
+Target string = jVERO fYXX
+
+Breakpoint 3, main (argc=3, argv=0x7fffffffea98) at h1.cpp:48
+48              printf( "Number of characters converted = %ld\n\n", rc );
+
+```
+
+- Print out the contents of the encrypted string
+
+```bash
+(gdb) print out_string
+$1 = "jVERO fYXX", '\000' <repeats 25 times>, "\002", '\000' <repeats 91 times>
+```
